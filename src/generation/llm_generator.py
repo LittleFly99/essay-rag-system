@@ -163,7 +163,7 @@ class LLMGenerator:
             logger.info(f"📚 检索到 {len(materials)} 个相关写作素材:")
             for i, material in enumerate(materials[:3], 1):  # 只显示前3个
                 logger.info(f"  {i}. 【{material.category}】{material.title}")
-                logger.info(f"     内容摘要: {material.content[:100]}...")
+                logger.info(f"     内容摘要: {material.content[:]}...")
         else:
             logger.info("📚 未检索到相关写作素材")
 
@@ -172,7 +172,7 @@ class LLMGenerator:
             logger.info(f"📑 检索到 {len(essays)} 篇相关范文:")
             for i, essay in enumerate(essays[:3], 1):  # 只显示前3个
                 logger.info(f"  {i}. 【{essay.essay_type}】{essay.title}")
-                logger.info(f"     内容摘要: {essay.content[:100]}...")
+                logger.info(f"     内容摘要: {essay.content[:]}...")
         else:
             logger.info("📑 未检索到相关范文")
 
@@ -184,7 +184,7 @@ class LLMGenerator:
         user_prompt = self._build_user_prompt(prompt, materials, essays, context)
         logger.info(f"👤 用户提示长度: {len(user_prompt)} 字符")
         logger.info(f"👤 用户提示内容预览:")
-        logger.info(f"     {user_prompt[:200]}...")
+        logger.info(f"     {user_prompt[:]}...")
 
         # 调用豆包API
         logger.info("🔄 正在调用豆包API...")
@@ -200,7 +200,7 @@ class LLMGenerator:
             logger.info("✅ 豆包API调用成功")
             logger.info(f"📤 API响应长度: {len(response_text)} 字符")
             logger.info(f"📤 API响应内容预览:")
-            logger.info(f"     {response_text[:300]}...")
+            logger.info(f"     {response_text[:]}...")
         else:
             logger.warning("⚠️ 豆包API返回空响应，使用模拟生成")
             return self._generate_mock_guidance(prompt, materials, essays)
@@ -299,40 +299,51 @@ class LLMGenerator:
         """构建系统提示"""
         return """你是一位经验丰富的语文老师和写作指导专家，专门为学生提供作文写作指导。
 
-你的任务是根据给定的作文题目，结合提供的写作素材和范文，生成详细的写作指导。
+你的任务是根据给定的作文题目，**充分利用并具体指导如何使用提供的写作素材和范文**，生成详细的写作指导。
+
+**重要要求**：
+1. **必须具体说明如何运用每个提供的素材** - 不能只是列出素材标题，要说明在文章的哪个部分、如何使用
+2. **必须分析范文的优秀写法** - 指出范文的结构特点、表达技巧，并建议学生如何借鉴
+3. **要建立素材与写作技巧的具体联系** - 说明某个素材适合用来论证哪个观点、表达哪种情感
+4. **提供可操作的具体建议** - 避免空泛的指导，要给出学生能直接运用的方法
 
 请按照以下JSON格式返回结果：
 
 ```json
 {
-  "theme_analysis": "深入分析作文题目的核心主题和写作要求",
+  "theme_analysis": "深入分析作文题目的核心主题和写作要求，结合提供的素材分析写作方向",
   "structure_suggestions": [
-    "开头段落建议",
-    "主体段落建议",
-    "结尾段落建议"
+    "开头：具体建议如何开头，可以运用哪个素材或借鉴哪个范文的开头方式",
+    "主体：分段建议，明确指出在每段中如何运用具体素材",
+    "结尾：结尾建议，说明如何升华主题"
   ],
   "writing_techniques": [
-    "实用的写作方法1",
-    "实用的写作技巧2",
-    "注意事项3"
+    "具体的写作技巧，结合提供的素材举例说明",
+    "从范文中学到的表达方法，并说明如何运用",
+    "针对题目特点的专门技巧"
   ],
   "key_points": [
-    "重点内容1",
-    "重点内容2",
-    "重点内容3"
+    "重点内容，结合具体素材说明",
+    "从范文中总结的关键要点",
+    "针对题目的特殊注意事项"
   ],
   "material_usage": [
-    "如何运用提供的素材1",
-    "如何运用提供的素材2"
+    "【素材名称】: 具体说明这个素材在文章的哪个位置、如何使用、能解决什么问题",
+    "【范文借鉴】: 具体说明从范文中学到什么、如何应用到自己的写作中"
+  ],
+  "concrete_examples": [
+    "提供具体的段落或句子示例，展示如何运用素材",
+    "给出范文中值得学习的具体表达方式"
   ]
 }
 ```
 
 请确保你的指导：
-- 针对具体的作文题目和要求
-- 结合提供的素材和范文
+- **素材运用具体化**：明确说明每个素材的使用方法和位置
+- **范文借鉴实用化**：分析范文的优点并转化为可操作的建议
+- **技巧说明详细化**：不只说"要生动"，要说"怎样生动"
+- **示例说明具体化**：提供具体的表达示例
 - 适合目标难度等级的学生
-- 具有实际指导意义
 - 条理清晰，易于理解和执行
 
 请严格按照上述JSON格式返回，不要添加其他内容。"""
@@ -368,23 +379,39 @@ class LLMGenerator:
 
         # 添加相关素材
         if materials:
-            user_prompt_parts.append("\n## 相关写作素材")
-            for i, material in enumerate(materials[:3], 1):  # 最多使用3个素材
+            user_prompt_parts.append("\n## 相关写作素材（请务必具体指导如何运用）")
+            for i, material in enumerate(materials[:5], 1):  # 增加到5个素材
                 user_prompt_parts.append(f"### 素材{i}: {material.title}")
                 user_prompt_parts.append(f"**分类**: {material.category}")
-                user_prompt_parts.append(f"**内容**: {material.content[:200]}...")
+                user_prompt_parts.append(f"**难度**: {material.difficulty_level.value if hasattr(material, 'difficulty_level') else '中等'}")
+                # 提供更多内容
+                content = material.content[:500] if len(material.content) > 500 else material.content
+                user_prompt_parts.append(f"**内容**: {content}")
+                if hasattr(material, 'themes') and material.themes:
+                    user_prompt_parts.append(f"**适用主题**: {', '.join(material.themes)}")
+                user_prompt_parts.append("") # 空行分隔
 
         # 添加范文参考
         if essays:
-            user_prompt_parts.append("\n## 参考范文")
-            for i, essay in enumerate(essays[:2], 1):  # 最多使用2篇范文
+            user_prompt_parts.append("\n## 参考范文（请分析优点并指导如何借鉴）")
+            for i, essay in enumerate(essays[:3], 1):  # 保持3篇范文
                 user_prompt_parts.append(f"### 范文{i}: {essay.title}")
                 user_prompt_parts.append(f"**类型**: {essay.essay_type.value}")
-                if essay.highlights:
-                    user_prompt_parts.append(f"**亮点**: {', '.join(essay.highlights)}")
-                if essay.structure_analysis:
+                user_prompt_parts.append(f"**难度**: {essay.difficulty_level.value if hasattr(essay, 'difficulty_level') else '中等'}")
+                
+                if hasattr(essay, 'highlights') and essay.highlights:
+                    user_prompt_parts.append(f"**写作亮点**: {', '.join(essay.highlights)}")
+                
+                if hasattr(essay, 'structure_analysis') and essay.structure_analysis:
                     user_prompt_parts.append(f"**结构分析**: {essay.structure_analysis}")
-                user_prompt_parts.append(f"**内容**: {essay.content[:300]}...")
+                
+                if hasattr(essay, 'language_features') and essay.language_features:
+                    user_prompt_parts.append(f"**语言特色**: {', '.join(essay.language_features)}")
+                
+                # 提供更多范文内容
+                content = essay.content[:800] if len(essay.content) > 800 else essay.content
+                user_prompt_parts.append(f"**范文内容**: {content}")
+                user_prompt_parts.append("") # 空行分隔
 
         # 添加上下文
         if context:
@@ -396,14 +423,21 @@ class LLMGenerator:
 
 请基于以上信息，为这个作文题目生成详细的写作指导。
 
-严格按照系统提示中的JSON格式返回结果，包含以下字段：
-- theme_analysis: 主题分析
-- structure_suggestions: 结构建议列表
-- writing_techniques: 写作技巧列表
-- key_points: 要点提示列表
-- material_usage: 素材使用建议列表
+**重要要求**：
+1. **必须具体说明如何运用每个素材** - 在material_usage中，要写明"在文章的开头可以运用《素材名》中的XXX观点/事例，用来XXX"
+2. **必须分析范文的借鉴价值** - 在material_usage中，要写明"可以学习《范文名》的XXX写法，比如XXX，运用到自己文章的XXX部分"  
+3. **提供具体的表达示例** - 在concrete_examples中，给出具体的句子或段落示例
+4. **确保指导的可操作性** - 学生看了指导后能知道具体怎么做
 
-请确保返回的是有效的JSON格式。""")
+严格按照系统提示中的JSON格式返回结果，包含以下字段：
+- theme_analysis: 主题分析（结合素材分析写作方向）
+- structure_suggestions: 结构建议列表（具体说明每部分如何运用素材）
+- writing_techniques: 写作技巧列表（结合素材和范文举例说明）
+- key_points: 要点提示列表（结合具体素材说明）
+- material_usage: 素材和范文使用建议列表（具体说明如何运用）
+- concrete_examples: 具体示例列表（提供可参考的表达方式）
+
+请确保返回的是有效的JSON格式，且每个字段都有实质性的、具体的内容。""")
 
         return "\n".join(user_prompt_parts)
 
@@ -419,13 +453,39 @@ class LLMGenerator:
             json_data = self._extract_json_from_response(response)
 
             if json_data:
+                # 提取素材使用建议
+                material_usage = json_data.get("material_usage", [])
+                concrete_examples = json_data.get("concrete_examples", [])
+                
+                # 合并相关信息
+                related_materials = []
+                reference_essays = []
+                
+                # 从material_usage中提取具体的材料使用信息
+                for usage in material_usage:
+                    if isinstance(usage, str) and usage.strip():
+                        if "】" in usage:  # 格式化的素材说明
+                            related_materials.append(usage)
+                        else:
+                            related_materials.append(usage)
+                
+                # 如果没有具体使用说明，则使用材料标题
+                if not related_materials and materials:
+                    related_materials = [f"《{mat.title}》- {mat.category}" for mat in materials]
+                
+                # 处理范文信息
+                if essays:
+                    reference_essays = [f"《{essay.title}》- {essay.essay_type.value}" for essay in essays]
+
                 return WritingGuidance(
                     theme_analysis=json_data.get("theme_analysis", ""),
                     structure_suggestion=json_data.get("structure_suggestions", []),
                     writing_tips=json_data.get("writing_techniques", []),
                     key_points=json_data.get("key_points", []),
-                    related_materials=[mat.title for mat in materials] if materials else [],
-                    reference_essays=[essay.title for essay in essays] if essays else []
+                    related_materials=related_materials,
+                    reference_essays=reference_essays,
+                    material_usage_details=material_usage,  # 新增字段：详细的素材使用说明
+                    concrete_examples=concrete_examples     # 新增字段：具体示例
                 )
             else:
                 # 如果JSON解析失败，尝试文本解析
@@ -664,18 +724,41 @@ class LLMGenerator:
 
         # 添加素材相关建议
         material_suggestions = []
+        material_usage_details = []
         if materials:
             material_suggestions.append(f"可以运用提供的{len(materials)}个相关素材")
-            for material in materials[:2]:
+            for i, material in enumerate(materials[:3], 1):
+                # 根据素材类型给出具体使用建议
+                if material.category in ["成长", "励志"]:
+                    usage_detail = f"【{material.title}】：可在文章主体部分作为论证素材，通过具体事例说明{prompt_type}主题，增强文章的说服力和感染力"
+                elif material.category in ["情感", "友谊", "亲情"]:
+                    usage_detail = f"【{material.title}】：适合在情感表达部分引用，通过生动的情感描述引起读者共鸣，增强文章的感染力"
+                elif material.category in ["科技", "社会", "环保"]:
+                    usage_detail = f"【{material.title}】：可作为论据支撑观点，在分析问题时引用相关数据或事例，使论证更加有力"
+                else:
+                    usage_detail = f"【{material.title}】：建议在文章的{['开头引入', '主体论证', '结尾升华'][i % 3]}部分运用，结合具体内容展开论述"
+                
+                material_usage_details.append(usage_detail)
                 material_suggestions.append(f"参考素材《{material.title}》中的观点和事例")
 
         # 添加范文参考建议
         essay_suggestions = []
         if essays:
             essay_suggestions.append(f"可以参考提供的{len(essays)}篇范文的结构和表达方式")
-            for essay in essays[:1]:
+            for essay in essays[:2]:
                 if hasattr(essay, 'highlights') and essay.highlights:
                     essay_suggestions.append(f"学习范文《{essay.title}》的亮点：{', '.join(essay.highlights[:2])}")
+                    # 添加具体的范文使用建议
+                    range_usage = f"【范文借鉴：{essay.title}】：学习其{essay.highlights[0] if essay.highlights else '表达方式'}，可以运用类似的写作手法和结构安排"
+                    material_usage_details.append(range_usage)
+        
+        # 生成具体示例
+        concrete_examples = []
+        if materials:
+            concrete_examples.append("开头示例：\"正如素材中提到的...\，这样的经历让我们明白...\"")
+            concrete_examples.append("论证示例：\"通过具体事例我们可以看到...\，这说明了...的重要性\"")
+        if essays:
+            concrete_examples.append("结构借鉴：\"可以采用'总-分-总'的结构，先提出观点，再分层论证，最后总结升华\"")
 
         return WritingGuidance(
             theme_analysis=template["theme_analysis"],
@@ -683,5 +766,7 @@ class LLMGenerator:
             writing_tips=template["writing_tips"] + material_suggestions,
             key_points=template["key_points"] + essay_suggestions,
             related_materials=[mat.title for mat in materials] if materials else [],
-            reference_essays=[essay.title for essay in essays] if essays else []
+            reference_essays=[essay.title for essay in essays] if essays else [],
+            material_usage_details=material_usage_details,
+            concrete_examples=concrete_examples
         )

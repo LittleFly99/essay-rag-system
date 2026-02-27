@@ -61,14 +61,14 @@ class HybridRetriever:
             logger.info("📊 最终检索结果详情:")
             logger.info(f"  - 素材: {len(final_materials)} 个")
             if final_materials:
-                for i, (material, score) in enumerate(final_materials[:3], 1):
+                for i, (material, score) in enumerate(final_materials[:min(len(final_materials), 3)], 1):
                     logger.info(f"    {i}. 【{material.category}】{material.title} (得分: {score:.3f})")
                     # 为素材添加分数属性以便后续使用
                     material.score = score
 
             logger.info(f"  - 范文: {len(final_essays)} 篇")
             if final_essays:
-                for i, (essay, score) in enumerate(final_essays[:3], 1):
+                for i, (essay, score) in enumerate(final_essays[:min(len(final_essays), 3)], 1):
                     logger.info(f"    {i}. 【{essay.essay_type}】{essay.title} (得分: {score:.3f})")
                     # 为范文添加分数属性以便后续使用
                     essay.score = score

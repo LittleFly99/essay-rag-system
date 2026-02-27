@@ -73,6 +73,12 @@ class WritingGuidance(BaseModel):
     key_points: List[str] = Field(..., description="要点提示")
     reference_materials: List[WritingMaterial] = Field(default=[], description="参考素材")
     sample_essays: List[SampleEssay] = Field(default=[], description="参考范文")
+    
+    # 新增字段：用于更好地展示素材和范文的使用
+    related_materials: List[str] = Field(default=[], description="相关素材列表（标题）")
+    reference_essays: List[str] = Field(default=[], description="参考范文列表（标题）")
+    material_usage_details: List[str] = Field(default=[], description="详细的素材使用说明")
+    concrete_examples: List[str] = Field(default=[], description="具体的表达示例")
 
 
 class RAGRequest(BaseModel):
